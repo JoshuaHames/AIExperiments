@@ -27,7 +27,7 @@ data = pd.read_csv('results.csv')
 # Define a function to load and preprocess images
 def load_image(file_path):
     # Load image, resize it to a consistent shape (423x1080), and normalize pixel values
-    img = tf.keras.utils.load_img(file_path, target_size=(211, 540))
+    img = tf.keras.utils.load_img(file_path, target_size=(440, 1410))
     img = tf.keras.utils.img_to_array(img) / 255.0  # Normalize to [0, 1]
     return img
 
@@ -56,7 +56,7 @@ X_train_images, X_test_images, X_train_metadata, X_test_metadata, y_train, y_tes
 )
 
 # Define the CNN branch for processing images
-image_input = Input(shape=(211, 540, 3), name="image_input")
+image_input = Input(shape=(440, 1410, 3), name="image_input")
 cnn_branch = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
 cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
 cnn_branch = layers.Conv2D(64, (3, 3), activation='relu')(cnn_branch)
