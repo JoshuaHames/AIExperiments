@@ -86,7 +86,7 @@ history = model.fit(
         {"image_input": X_test_images, "metadata_input": X_test_metadata},
         y_test
     ),
-    epochs=20,
+    epochs=50,
     batch_size=8,
     callbacks=[tensorboard_callback]
 )
