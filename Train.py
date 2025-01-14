@@ -57,6 +57,9 @@ image_input = Input(shape=(423, 1080, 3), name="image_input")
 cnn_branch = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
 cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
 cnn_branch = layers.Conv2D(64, (3, 3), activation='relu')(cnn_branch)
+cnn_branch = layers.Attention()([cnn_branch, cnn_branch]) 
+cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
+cnn_branch = layers.Conv2D(128, (3, 3), activation='relu')(cnn_branch)
 cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
 cnn_branch = layers.GlobalAveragePooling2D()(cnn_branch)
 
@@ -67,14 +70,20 @@ dense_branch = layers.Dense(32, activation='relu')(dense_branch)
 
 # Combine the two branches
 combined = layers.Concatenate()([cnn_branch, dense_branch])
+combined = layers.Dense(512, activation='relu')(combined)
+combined = layers.Dropout(0.1)(combined)
+combined = layers.Concatenate()([combined, cnn_branch, dense_branch])
+combined = layers.Dense(256, activation='relu')(combined)
+combined = layers.BatchNormalization()(combined)
+combined = layers.Dropout(0.3)(combined)
 combined = layers.Dense(128, activation='relu')(combined)
-output = layers.Dense(1, name="ranking_output")(combined)  # Single output for ranking
+output = layers.Dense(1, activation='sigmoid', name="ranking_output")(combined)  # Single output for ranking
 
 # Build the model
 model = Model(inputs=[image_input, metadata_input], outputs=output)
 
 # Compile the model
-model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+model.compile(optimizer=keras.optimizers.Adam(lr=0.001), loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1, write_graph=True)
@@ -88,7 +97,8 @@ history = model.fit(
     ),
     epochs=50,
     batch_size=8,
-    callbacks=[tensorboard_callback]
+    callbacks=[tensorboard_callback],
+    verbose=2,
 )
 
 # Save the trained model
