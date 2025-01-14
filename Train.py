@@ -66,16 +66,17 @@ cnn_branch = layers.GlobalAveragePooling2D()(cnn_branch)
 # Define the dense branch for processing metadata
 metadata_input = Input(shape=(3,), name="metadata_input")
 dense_branch = layers.Dense(64, activation='relu')(metadata_input)
+dense_branch = layers.Dropout(0.1)(dense_branch)
 dense_branch = layers.Dense(32, activation='relu')(dense_branch)
 
 # Combine the two branches
 combined = layers.Concatenate()([cnn_branch, dense_branch])
 combined = layers.Dense(512, activation='relu')(combined)
-combined = layers.Dropout(0.1)(combined)
-combined = layers.Concatenate()([combined, cnn_branch, dense_branch])
-combined = layers.Dense(256, activation='relu')(combined)
-combined = layers.BatchNormalization()(combined)
 combined = layers.Dropout(0.3)(combined)
+combined = layers.Dense(256, activation='relu')(combined)
+combined = layers.Concatenate()([combined, cnn_branch, dense_branch])
+combined = layers.Dropout(0.3)(combined)
+combined = layers.BatchNormalization()(combined)
 combined = layers.Dense(128, activation='relu')(combined)
 output = layers.Dense(1, activation='sigmoid', name="ranking_output")(combined)  # Single output for ranking
 
@@ -83,7 +84,7 @@ output = layers.Dense(1, activation='sigmoid', name="ranking_output")(combined) 
 model = Model(inputs=[image_input, metadata_input], outputs=output)
 
 # Compile the model
-model.compile(optimizer=keras.optimizers.Adam(lr=0.001), loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+model.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
 
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1, write_graph=True)
