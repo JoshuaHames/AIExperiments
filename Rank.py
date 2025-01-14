@@ -11,8 +11,6 @@ from keras import layers, models, Model, Input
 import tensorflowjs as tfjs
 import os
 
-log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1, write_graph=True)
 
 # Enable GPU memory growth
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -84,6 +82,8 @@ model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
 
 # Train the model
 # Train the model with TensorBoard callback
+log_dir = "/mnt/c/Users/joshua.hames/OneDrive - O-NET/Desktop/Judge/logs"
+tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1, write_graph=True)
 history = model.fit(
     {"image_input": X_train_images, "metadata_input": X_train_metadata},
     y_train,
@@ -91,7 +91,7 @@ history = model.fit(
         {"image_input": X_test_images, "metadata_input": X_test_metadata},
         y_test
     ),
-    epochs=20,
+    epochs=2,
     batch_size=2,
     callbacks=[tensorboard_callback]
 )
