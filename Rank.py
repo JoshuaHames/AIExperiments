@@ -1,104 +1,88 @@
-import keras
-from keras.callbacks import TensorBoard
-import TensorBoard
-import datetime
-import datetime
-import tensorflow as tf
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from keras import layers, models, Model, Input
-import tensorflowjs as tfjs
 import os
+import csv
+import sqlite3
+from tkinter import Tk, Label, Entry, filedialog
+from PIL import Image, ImageTk
 
 
-# Enable GPU memory growth
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-    try:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-    except RuntimeError as e:
-        print(e)
+class ImageRankingTool:
+    def __init__(self, db_path, output_file):
+        self.db_path = db_path
+        self.output_file = output_file
+        self.connection = sqlite3.connect(db_path)
+        self.cursor = self.connection.cursor()
+        
+        # Fetch all images and metadata from the database
+        self.cursor.execute("SELECT id, filename, followers, following, numPosts FROM ImageTable")
+        self.images_data = self.cursor.fetchall()
+        self.current_index = 0
+        self.rankings = []
+        
+        # Initialize GUI
+        self.root = Tk()
+        self.root.title("Image Ranking Tool")
+        self.image_label = Label(self.root)
+        self.image_label.pack()
+        self.entry = Entry(self.root)
+        self.entry.pack()
+        
+        # Bind the Enter key to save the rank
+        self.entry.bind("<Return>", lambda event: self.save_rank())
 
-# Load the CSV file with filenames and rankings
-data = pd.read_csv('results.csv')
+        self.display_image()
+        self.root.mainloop()
 
-# Define a function to load and preprocess images
-def load_image(file_path):
-    # Load image, resize it to a consistent shape (423x1080), and normalize pixel values
-    img = tf.keras.utils.load_img(file_path, target_size=(440, 1410))
-    img = tf.keras.utils.img_to_array(img) / 255.0  # Normalize to [0, 1]
-    return img
+    def display_image(self):
+        if self.current_index < len(self.images_data):
+            _, filename, follow_count, following_count, num_posts = self.images_data[self.current_index]
+            img_path = os.path.join(filename)
+            try:
+                img = Image.open('Cropped/' + img_path)
+                img.thumbnail((950, 950))  # Resize for display
+                img_tk = ImageTk.PhotoImage(img)
+                self.image_label.config(image=img_tk)
+                self.image_label.image = img_tk
+            except FileNotFoundError:
+                print(f"Error: File {img_path} not found.")
+                self.current_index += 1
+                self.display_image()
+        else:
+            self.finish()
 
-# Prepare the images, metadata, and corresponding rankings
-images = []
-metadata = []
-rankings = []
+    def save_rank(self):
+        rank = self.entry.get()
+        if rank.isdigit() and 1 <= int(rank) <= 100:
+            rank = int(rank)
+            row_data = list(self.images_data[self.current_index])  # Get current image row
+            row_data.append(rank)  # Add ranking to row data
+            self.rankings.append(row_data)  # Add to rankings
+            self.current_index += 1
+            self.entry.delete(0, 'end')
+            self.display_image()
+        else:
+            print("Please enter a valid rank between 1 and 100.")
 
-# Adjust the directory if needed to match where your images are stored
-image_directory = 'Cropped/'
-
-for index, row in data.iterrows():
-    image_path = os.path.join(image_directory, row['filename'])
-    images.append(load_image(image_path))
-    metadata.append([row['followCount'], row['followingCount'], row['numPosts']])
-    rankings.append(row['ranking'])
-
-# Convert to numpy arrays
-images = np.array(images)
-metadata = np.array(metadata, dtype=np.float32)
-rankings = np.array(rankings, dtype=np.float32)
-
-# Split the data into training and testing sets
-X_train_images, X_test_images, X_train_metadata, X_test_metadata, y_train, y_test = train_test_split(
-    images, metadata, rankings, test_size=0.2, random_state=42
-)
-
-# Define the CNN branch for processing images
-image_input = Input(shape=(440, 1410, 3), name="image_input")
-cnn_branch = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
-cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
-cnn_branch = layers.Conv2D(64, (3, 3), activation='relu')(cnn_branch)
-cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
-cnn_branch = layers.GlobalAveragePooling2D()(cnn_branch)
-
-# Define the dense branch for processing metadata
-metadata_input = Input(shape=(3,), name="metadata_input")
-dense_branch = layers.Dense(64, activation='relu')(metadata_input)
-dense_branch = layers.Dense(32, activation='relu')(dense_branch)
-
-# Combine the two branches
-combined = layers.Concatenate()([cnn_branch, dense_branch])
-combined = layers.Dense(128, activation='relu')(combined)
-output = layers.Dense(1, name="ranking_output")(combined)  # Single output for ranking
-
-# Build the model
-model = Model(inputs=[image_input, metadata_input], outputs=output)
-
-# Compile the model
-model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+    def finish(self):
+        with open(self.output_file, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["id", "filename", "followCount", "followingCount", "numPosts", "ranking"])
+            writer.writerows(self.rankings)
+        print(f"Ranking complete! Results saved to {self.output_file}.")
+        self.connection.close()
+        self.root.quit()
 
 
-# Train the model
-# Train the model with TensorBoard callback
-log_dir = "/mnt/c/Users/joshua.hames/OneDrive - O-NET/Desktop/Judge/logs"
-tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1, write_graph=True)
-history = model.fit(
-    {"image_input": X_train_images, "metadata_input": X_train_metadata},
-    y_train,
-    validation_data=(
-        {"image_input": X_test_images, "metadata_input": X_test_metadata},
-        y_test
-    ),
-    epochs=2,
-    batch_size=2,
-    callbacks=[tensorboard_callback]
-)
+def main():
+    db_path = filedialog.askopenfilename(
+        title="Select SQLite Database", filetypes=[("SQLite Database", "*.db")]
+    )
+    if db_path:
+        output_file = filedialog.asksaveasfilename(
+            title="Save Rankings As", defaultextension=".csv", filetypes=[("CSV files", "*.csv")]
+        )
+        if output_file:
+            ImageRankingTool(db_path, output_file)
 
-# Save the trained model
-model.save('image_ranking_model')
-tfjs.converters.save_keras_model(model, 'tfjs_model')
 
-# Optionally, print a summary of the training process
-print("Training complete. Model saved as 'image_ranking_model'.")
+if __name__ == "__main__":
+    main()

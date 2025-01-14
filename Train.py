@@ -49,7 +49,7 @@ rankings = np.array(rankings, dtype=np.float32)
 
 # Split the data into training and testing sets
 X_train_images, X_test_images, X_train_metadata, X_test_metadata, y_train, y_test = train_test_split(
-    images, metadata, rankings, test_size=0.2, random_state=42
+    images, metadata, rankings, test_size=0.25, random_state=42
 )
 
 # Define the CNN branch for processing images
@@ -86,8 +86,8 @@ history = model.fit(
         {"image_input": X_test_images, "metadata_input": X_test_metadata},
         y_test
     ),
-    epochs=5,
-    batch_size=2,
+    epochs=20,
+    batch_size=8,
     callbacks=[tensorboard_callback]
 )
 
