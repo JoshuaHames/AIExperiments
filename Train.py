@@ -71,7 +71,7 @@ dense_branch = layers.Dense(32, activation='relu')(dense_branch)
 # Combine the two branches
 combined = layers.Concatenate()([cnn_branch, dense_branch])
 combined = layers.Dense(512, activation='relu')(combined)
-combined = layers.Dropout(0.3)(combined)
+combined = layers.Dropout(0.2)(combined)
 combined = layers.Dense(256, activation='relu')(combined)
 #combined = layers.Concatenate()([combined, cnn_branch, dense_branch])
 #combined = layers.Dropout(0.3)(combined)
