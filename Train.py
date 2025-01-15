@@ -57,16 +57,24 @@ image_input = Input(shape=(423, 1080, 3), name="image_input")
 cnn_branch = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
 cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
 cnn_branch = layers.Conv2D(64, (3, 3), activation='relu')(cnn_branch)
+cnn_branch = layers.Attention()([cnn_branch, cnn_branch]) 
+cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
+cnn_branch = layers.Conv2D(128, (3, 3), activation='relu')(cnn_branch)
 cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
 cnn_branch = layers.GlobalAveragePooling2D()(cnn_branch)
 
 # Define the dense branch for processing metadata
 metadata_input = Input(shape=(3,), name="metadata_input")
 dense_branch = layers.Dense(64, activation='relu')(metadata_input)
+dense_branch = layers.Dropout(0.15)(dense_branch)
 dense_branch = layers.Dense(32, activation='relu')(dense_branch)
 
 # Combine the two branches
 combined = layers.Concatenate()([cnn_branch, dense_branch])
+combined = layers.Dense(128, activation='relu')(combined)
+combined = layers.Dropout(0.12)(combined)
+combined = layers.Dense(256, activation='relu')(combined)
+combined = layers.BatchNormalization()(combined)
 combined = layers.Dense(128, activation='relu')(combined)
 output = layers.Dense(1, name="ranking_output")(combined)  # Single output for ranking
 
@@ -87,7 +95,7 @@ history = model.fit(
         y_test
     ),
     epochs=50,
-    batch_size=8,
+    batch_size=4,
     callbacks=[tensorboard_callback]
 )
 
