@@ -1,46 +1,48 @@
-from PIL import Image
-import os
+import math
 
-def process_images_in_folder(folder_path, output_folder, target_height):
-    # Ensure the output folder exists
-    os.makedirs(output_folder, exist_ok=True)
+def read_lines_from_csv(file_name):
+    try:
+        with open(file_name, 'r', encoding='utf-8') as file:
+            for line in file:
+                yield line.strip()  # Removes leading/trailing whitespace and newline
+    except FileNotFoundError:
+        print(f"Error: File '{file_name}' not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-    # Iterate over each file in the folder
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
 
-        # Skip non-image files
-        if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".bmp", ".gif")):
-            print(f"Skipping non-image file: {filename}")
-            continue
+def normalize_value(value: int, expected_min: int, expected_max: int, target_min: int, target_max: int) -> int:
+    if expected_min == expected_max:
+        raise ValueError("Expected range cannot have the same minimum and maximum values.")
+    
+    # Normalize the value to a 0–1 range
+    normalized = (value - expected_min) / (expected_max - expected_min)
+    
+    # Scale to the target range
+    scaled = target_min + (normalized * (target_max - target_min))
+    
+    # Round and ensure it is an integer
+    return round(scaled)
 
-        try:
-            # Open the image
-            with Image.open(file_path) as img:
-                width, height = img.size
 
-                if height >= target_height:
-                    # Crop the image (keep the top part)
-                    processed_img = img.crop((0, 0, width, target_height))
-                else:
-                    # Add black space to extend the bottom of the image
-                    new_img = Image.new("RGB", (width, target_height), (0, 0, 0))
-                    paste_position = (0, 0)
-                    new_img.paste(img, paste_position)
-                    processed_img = new_img
+def NormalizeScore(rawScore: int, following: int, followers: int):
+    if(int(rawScore) < 50):
+        print("Following: " + str(following) + " Followers: " + str(followers) + " Ratio: " + " Score: " + " 0")
+        return 0
+    
+    ratio = (int(following) / int(followers))
+    score = (ratio * 1000) * (int(rawScore) / 100)
+    if(int(score) > 5000):
+        score = 5000
+    score = normalize_value(int(score), 100, 5000, 25, 100)
+    print("Following: " + str(following) + " Followers: " + str(followers) + " Ratio: " + str(ratio) + " Score: " + str(int(score)))
+    return score
 
-                # Save the processed image to the output folder
-                output_path = os.path.join(output_folder, filename)
-                processed_img.save(output_path)
-                print(f"Processed and saved: {filename}")
 
-        except Exception as e:
-            print(f"Error processing {filename}: {e}")
 
-if __name__ == "__main__":
-    # Specify the input folder, output folder, and target height
-    input_folder = "raw/"
-    output_folder = "cropped/"
-    target_height = 2000  # Replace with your desired height
+with open("ScaledData.csv", "w") as outFile:
+    for line in read_lines_from_csv('results.csv'):
+        row = line.split(',')
+        row[5] = NormalizeScore(row[5], row[3], row[2])
+        outFile.write(str(row[0]) + ',' + str(row[1]) + ',' + str(row[2]) + ',' + str(row[3]) + ',' + str(row[4]) + ',' + str(row[5]) + '\n')
 
-    process_images_in_folder(input_folder, output_folder, target_height)
