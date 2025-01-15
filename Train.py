@@ -8,7 +8,6 @@ import tensorflowjs as tfjs
 import os
 from keras.callbacks import TensorBoard
 import datetime
-from tensorflow.keras.mixed_precision import experimental as mixed_precision
 
 # Disable GPU settings
 tf.config.set_visible_devices([], 'GPU')
@@ -16,8 +15,6 @@ num_threads = os.cpu_count()  # Total number of cores
 tf.config.threading.set_intra_op_parallelism_threads(num_threads)
 tf.config.threading.set_inter_op_parallelism_threads(num_threads)
 tf.config.optimizer.set_jit(True)
-policy = mixed_precision.Policy('mixed_float16')
-mixed_precision.set_policy(policy)
 
 # Load the CSV file with filenames and rankings
 data = pd.read_csv('ScaledData.csv')
@@ -55,7 +52,7 @@ X_train_images, X_test_images, X_train_metadata, X_test_metadata, y_train, y_tes
 
 
 
-
+image_input = Input(shape=(423, 1080, 3), name="image_input")
 cnn_branch = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
 cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
 cnn_branch = layers.Conv2D(64, (3, 3), activation='relu')(cnn_branch)
