@@ -1,11 +1,11 @@
 import tensorflow as tf
 from tensorflow.keras import layers, models, Input, Model
+from tensorflow.keras.callbacks import LearningRateScheduler, TensorBoard
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 import tensorflowjs as tfjs
 import os
-from keras.callbacks import TensorBoard
 import datetime
 
 # Disable GPU settings for CPU optimization
@@ -44,6 +44,16 @@ X_train, X_test, y_train, y_test = train_test_split(
     images, labels, test_size=0.25, random_state=42
 )
 
+# Data Augmentation
+datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+    rotation_range=15,
+    width_shift_range=0.1,
+    height_shift_range=0.1,
+    zoom_range=0.1,
+    horizontal_flip=True
+)
+datagen.fit(X_train)
+
 # Define the model
 image_input = Input(shape=(423, 1080, 3), name="image_input")
 cnn_branch = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
@@ -63,17 +73,25 @@ model = Model(inputs=image_input, outputs=output)
 # Compile the model
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
+# Learning Rate Scheduler
+def scheduler(epoch, lr):
+    if epoch < 10:
+        return lr
+    else:
+        return lr * tf.math.exp(-0.1)
+
+lr_scheduler = LearningRateScheduler(scheduler)
+
 # Setup TensorBoard logging
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-# Train the model
+# Train the model with data augmentation
 history = model.fit(
-    X_train, y_train,
+    datagen.flow(X_train, y_train, batch_size=8),
     validation_data=(X_test, y_test),
     epochs=50,
-    batch_size=8,
-    callbacks=[tensorboard_callback]
+    callbacks=[tensorboard_callback, lr_scheduler]
 )
 
 # Save the trained model
