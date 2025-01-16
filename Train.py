@@ -33,7 +33,7 @@ for index, row in data.iterrows():
     image_path = os.path.join(image_directory, row['filename'])
     if os.path.exists(image_path):
         images.append(load_image(image_path))
-        labels.append(1 if row['ranking'] else 0)  # Convert ranking to binary (True -> 1, False -> 0)
+        labels.append(1 if row['rank'] else 0)  # Convert ranking to binary (True -> 1, False -> 0)
 
 # Convert to numpy arrays
 images = np.array(images)
