@@ -1,58 +1,44 @@
 import os
 import tensorflow as tf
-from tensorflow.keras.models import load_model
-from PIL import Image
 import numpy as np
 
-# Function to preprocess the image
-def preprocess_image(image_path):
-    target_size = (423, 1080)  # Match the input shape of the model
-    img = Image.open(image_path)
-    img = img.resize(target_size)  # Resize image
-    img_array = np.array(img) / 255.0  # Normalize pixel values to [0, 1]
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    return img_array
+# Load the trained model
+model = tf.keras.models.load_model('binary_image_ranking_model')
 
-# Function to load metadata for testing (dummy data or real metadata)
-def get_test_metadata():
-    # Replace this with actual metadata, or adjust for your case
-    # Example: followers, following, numPosts
-    return np.array([[1000, 500, 100]])  # Modify with realistic test values
+# Define a function to load and preprocess images
+def load_image(file_path):
+    img = tf.keras.utils.load_img(file_path, target_size=(423, 1080))  # Resize image
+    img = tf.keras.utils.img_to_array(img) / 255.0  # Normalize to [0, 1]
+    return np.expand_dims(img, axis=0)  # Add batch dimension
 
-def main():
-    # Load the trained model
-    model = load_model('image_ranking_model')  # Update with the correct model path
+# Directory containing test images
+test_dir = 'testing/'
 
-    # Define the testing folder
-    testing_folder = "testing"
+# Ensure the directory exists
+if not os.path.exists(test_dir):
+    print(f"Error: The directory '{test_dir}' does not exist.")
+    exit()
 
-    if not os.path.exists(testing_folder):
-        print(f"Testing folder '{testing_folder}' not found. Exiting.")
-        return
+# Process each image in the directory
+for image_name in os.listdir(test_dir):
+    image_path = os.path.join(test_dir, image_name)
 
-    # Iterate over all image files in the testing folder
-    for filename in os.listdir(testing_folder):
-        file_path = os.path.join(testing_folder, filename)
+    if not os.path.isfile(image_path):
+        continue  # Skip non-file entries (e.g., directories)
 
-        # Check if it's an image file
-        if not filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
-            print(f"Skipping non-image file: {filename}")
-            continue
+    try:
+        # Load and preprocess the image
+        image = load_image(image_path)
 
-        try:
-            # Preprocess the image
-            image_array = preprocess_image(file_path)
-            metadata_array = get_test_metadata()
+        # Predict using the trained model
+        prediction = model.predict(image)
 
-            # Make a prediction
-            prediction = model.predict([image_array, metadata_array])
-            predicted_rating = prediction[0][0]
+        # Convert the prediction to a binary True/False value
+        is_true = prediction[0][0] > 0.5
 
-            # Output the result
-            print(f"Image: {filename}, Predicted Rating: {predicted_rating:.2f}")
+        # Output the result
+        result = "True" if is_true else "False"
+        print(f"Image: {image_name} | Prediction: {result} (Confidence: {prediction[0][0]:.2f})")
 
-        except Exception as e:
-            print(f"Error processing file '{filename}': {e}")
-
-if __name__ == "__main__":
-    main()
+    except Exception as e:
+        print(f"Error processing image '{image_name}': {e}")
