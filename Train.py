@@ -45,27 +45,21 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # Data Augmentation
-#datagen = tf.keras.preprocessing.image.ImageDataGenerator(
-#    rotation_range=15,
-#    width_shift_range=0.1,
-#    height_shift_range=0.1,
-#    zoom_range=0.1,
-#    horizontal_flip=True
-#)
-#datagen.fit(X_train)
+datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+    rotation_range=10,
+    width_shift_range=0.05,
+    height_shift_range=0.05,
+    zoom_range=0.05,
+    horizontal_flip=True
+)
+datagen.fit(X_train)
 
 # Define the model
 image_input = Input(shape=(423, 1080, 3), name="image_input")
 cnn_branch = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
 cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
-cnn_branch = layers.Conv2D(48, (3, 3), activation='relu')(cnn_branch)
-cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
-cnn_branch = layers.Conv2D(64, (3, 3), activation='relu')(cnn_branch)
-cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
-cnn_branch = layers.Conv2D(128, (3, 3), activation='relu')(cnn_branch)
-cnn_branch = layers.MaxPooling2D((2, 2))(cnn_branch)
 cnn_branch = layers.GlobalAveragePooling2D()(cnn_branch)
-dense_layer = layers.Dense(128, activation='relu')(cnn_branch)
+dense_layer = layers.Dense(64, activation='relu')(cnn_branch)
 output = layers.Dense(1, activation='sigmoid', name="ranking_output")(dense_layer)
 
 model = Model(inputs=image_input, outputs=output)
@@ -74,13 +68,13 @@ model = Model(inputs=image_input, outputs=output)
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
 # Learning Rate Scheduler
-#def scheduler(epoch, lr):
-#    if epoch < 10:
-#        return lr
-#    else:
-#        return lr * tf.math.exp(-0.1)
+def scheduler(epoch, lr):
+    if epoch < 10:
+        return lr
+    else:
+        return lr * tf.math.exp(-0.1)
 
-#lr_scheduler = LearningRateScheduler(scheduler)
+lr_scheduler = LearningRateScheduler(scheduler)
 
 # Setup TensorBoard logging
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -88,11 +82,10 @@ tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
 # Train the model with data augmentation
 history = model.fit(
-    X_train, y_train,
+    datagen.flow(X_train, y_train, batch_size=8),
     validation_data=(X_test, y_test),
-    epochs=100,
-    batch_size=12,
-    callbacks=[tensorboard_callback]
+    epochs=50,
+    callbacks=[tensorboard_callback, lr_scheduler]
 )
 
 # Save the trained model
